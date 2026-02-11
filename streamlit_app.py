@@ -10,7 +10,6 @@ st.title("🚐 Evidencija korištenja vozila")
 # Putanja do datoteke za čuvanje podataka
 
 # Učitavanje podataka
-if os.path.exists(DB_FILE):
     df = pd.read_csv(DB_FILE)
 else:
     df = pd.DataFrame(columns=['Datum', 'Početno (2)', 'Krajnje (3)', 'Pređeno (11)', 'Relacija (4)', 'Polazak (5)', 'Dolazak (6)'])
