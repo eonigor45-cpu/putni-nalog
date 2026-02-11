@@ -2,63 +2,67 @@ import streamlit as st
 import pandas as pd
 import os
 
+# Postavke stranice
 st.set_page_config(page_title="Putni Nalog", layout="wide")
 
-# Naslov aplikacije
 st.title("🚐 Evidencija korištenja vozila")
 
-# Putanja do datoteke za čuvanje podataka
+DB_FILE = "podaci.csv"
 
-# Učitavanje podataka
+# Definisanje kolona tačno prema tvom papiru
+KOLONE = [
+    'Datum (1)', 
+    'Početno (2)', 
+    'Krajnje (3)', 
+    'Relacija (4)', 
+    'Polazak (5)', 
+    'Dolazak (6)', 
+    'Pređeno (11)'
+]
+
+# Učitavanje ili kreiranje nove tabele
+if os.path.exists(DB_FILE):
     df = pd.read_csv(DB_FILE)
 else:
-    df = pd.DataFrame(columns=['Datum', 'Početno (2)', 'Krajnje (3)', 'Pređeno (11)', 'Relacija (4)', 'Polazak (5)', 'Dolazak (6)'])
+    df = pd.DataFrame(columns=KOLONE)
 
 # --- BOČNA TRAKA ZA UNOS ---
 with st.sidebar:
-    st.header("Novi unos u nalog")
+    st.header("Novi unos")
     with st.form("forma", clear_on_submit=True):
-        datum = st.text_input("Datum (1)")
-        pocetna = st.number_input("Stanje brojila: Početno (2)", value=0)
-        krajnja = st.number_input("Stanje brojila: Krajnje (3)", value=0)
-        relacija = st.text_input("Relacija kretanja (4)")
-        polazak = st.text_input("Vrijeme: Polaska (5)")
-        dolazak = st.text_input("Vrijeme: Dolaska (6)")
+        d = st.text_input("Datum (1)")
+        p = st.number_input("Stanje: Početno (2)", min_value=0, value=0)
+        k = st.number_input("Stanje: Krajnje (3)", min_value=0, value=0)
+        rel = st.text_input("Relacija (4)")
+        pol = st.text_input("Vrijeme: Polazak (5)")
+        dol = st.text_input("Vrijeme: Dolazak (6)")
         
-        submitted = st.form_submit_button("Spremi u nalog")
-        
-        if submitted:
-            razlika = krajnja - pocetna
-            novi_red = pd.DataFrame([[datum, pocetna, krajnja, razlika, relacija, polazak, dolazak]], columns=df.columns)
+        if st.form_submit_button("Spremi u nalog"):
+            razlika = k - p
+            # Redoslijed mora pratiti listu KOLONE
+            novi_red = pd.DataFrame([[d, p, k, rel, pol, dol, razlika]], columns=KOLONE)
             df = pd.concat([df, novi_red], ignore_index=True)
             df.to_csv(DB_FILE, index=False)
-            st.success("Podaci su spremljeni!")
+            st.success("Spremljeno!")
             st.rerun()
 
     st.divider()
-    # Dugme za brisanje zadnjeg reda
     if st.button("Obriši zadnji unos"):
         if not df.empty:
             df = df.drop(df.index[-1])
             df.to_csv(DB_FILE, index=False)
-            st.warning("Zadnji unos je obrisan.")
+            st.warning("Obrisano.")
             st.rerun()
 
 # --- GLAVNI EKRAN ---
-st.subheader("Pregled naloga (Tabela)")
+st.subheader("Pregled putnih naloga")
 st.dataframe(df, use_container_width=True)
 
-# Statistika na dnu
+# Sabiranje kilometara
 if not df.empty:
-    st.divider()
-    col1, col2 = st.columns(2)
-    with col1:
-        ukupno_km = df['Pređeno (11)'].sum()
-        st.metric("UKUPNO PREĐENO", f"{ukupno_km} km")
-    with col2:
-        broj_voznji = len(df)
-        st.metric("BROJ UPISANIH VOŽNJI", broj_voznji)
+    ukupno = df['Pređeno (11)'].sum()
+    st.metric("UKUPNO PREĐENO KILOMETARA", f"{ukupno} km")
 
-# Opcija za preuzimanje (ako zatreba za ispis)
+# Dugme za export
 csv = df.to_csv(index=False).encode('utf-8')
-st.download_button("Preuzmi tabelu za Excel", csv, "putni_nalog.csv", "text/csv")
+st.download_button("Preuzmi kao Excel/CSV", csv, "moj_nalog.csv", "text/csv")
