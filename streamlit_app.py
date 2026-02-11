@@ -2,25 +2,48 @@ import streamlit as st
 import pandas as pd
 import os
 
-st.set_page_config(page_title="Putni Nalog", layout="wide")
+st.set_page_config(page_title="Putni Nalog - Više Vozača", layout="wide")
+
 st.title("🚐 Evidencija korištenja vozila")
 
-DB_FILE = "podaci.csv"
-# Tačne kolone prema tvom papiru
+# --- LOGIN DIO ---
+if 'vozac' not in st.session_state:
+    st.session_state['vozac'] = None
+
+if st.session_state['vozac'] is None:
+    with st.container():
+        st.subheader("Prijavite se")
+        ime = st.text_input("Unesite vaše ime (bez kvačica, npr. Marko):").strip().capitalize()
+        if st.button("Uđi u nalog"):
+            if ime:
+                st.session_state['vozac'] = ime
+                st.rerun()
+            else:
+                st.error("Morate unijeti ime.")
+    st.stop()
+
+# Ako je vozač prijavljen, nastavlja se ovdje
+trenutni_vozac = st.session_state['vozac']
+DB_FILE = f"podaci_{trenutni_vozac}.csv"
 KOLONE = ['Datum (1)', 'Početno (2)', 'Krajnje (3)', 'Relacija (4)', 'Polazak (5)', 'Dolazak (6)', 'Pređeno (11)']
 
-# PAMETNO UČITAVANJE: Ako stara tabela ne valja, pravi se nova automatski
+st.sidebar.info(f"Prijavljeni vozač: **{trenutni_vozac}**")
+if st.sidebar.button("Odjavi se"):
+    st.session_state['vozac'] = None
+    st.rerun()
+
+# Učitavanje podataka za specifičnog vozača
 if os.path.exists(DB_FILE):
     try:
         df = pd.read_csv(DB_FILE)
-        # Ako fale nove kolone (poput Polazak), resetuj tabelu da ne puca
-        if 'Polazak (5)' not in df.columns or 'Pređeno (11)' not in df.columns:
+        if list(df.columns) != KOLONE:
             df = pd.DataFrame(columns=KOLONE)
     except:
         df = pd.DataFrame(columns=KOLONE)
 else:
     df = pd.DataFrame(columns=KOLONE)
 
+# --- BOČNA TRAKA ZA UNOS ---
 with st.sidebar:
     st.header("Novi unos")
     with st.form("forma", clear_on_submit=True):
@@ -39,18 +62,25 @@ with st.sidebar:
             st.rerun()
 
     st.divider()
-    # DUGME ZA HITNI RESET - Ako se ikad pojavi crveno, klikni ovo
-    if st.button("🗑️ OBRIŠI SVE I POPRAVI"):
+    if st.button("Obriši zadnji unos"):
+        if not df.empty:
+            df = df.drop(df.index[-1])
+            df.to_csv(DB_FILE, index=False)
+            st.rerun()
+    
+    if st.button("🗑️ OBRIŠI MOJ NALOG (Reset)"):
         if os.path.exists(DB_FILE):
             os.remove(DB_FILE)
-        st.rerun()
+            st.rerun()
 
-st.subheader("Pregled naloga")
-# Prikazujemo tabelu samo ako ima kolone koje nam trebaju
-if not df.empty and 'Pređeno (11)' in df.columns:
+# --- GLAVNI EKRAN ---
+st.subheader(f"Pregled naloga za: {trenutni_vozac}")
+if not df.empty:
     st.dataframe(df, use_container_width=True)
     ukupno = pd.to_numeric(df['Pređeno (11)']).sum()
-    st.metric("UKUPNO PREĐENO", f"{ukupno} km")
+    st.metric(f"UKUPNO PREĐENO ({trenutni_vozac})", f"{ukupno} km")
+    
+    csv = df.to_csv(index=False).encode('utf-8')
+    st.download_button(f"Preuzmi nalog ({trenutni_vozac})", csv, f"nalog_{trenutni_vozac}.csv", "text/csv")
 else:
-    st.write("Tabela je trenutno prazna. Unesite prve podatke sa strane.")
-    st.dataframe(pd.DataFrame(columns=KOLONE), use_container_width=True)
+    st.write("Vaša tabela je prazna.")
