@@ -8,7 +8,6 @@ st.set_page_config(page_title="Putni Nalog", layout="wide")
 st.title("🚐 Evidencija korištenja vozila")
 
 # Putanja do datoteke za čuvanje podataka
-DB_FILE = "podaci.csv"
 
 # Učitavanje podataka
 if os.path.exists(DB_FILE):
